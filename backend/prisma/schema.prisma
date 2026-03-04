@@ -1,0 +1,159 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+  CLERK
+}
+
+enum TransactionType {
+  CARD
+  UPI
+  BANK_TRANSFER
+}
+
+enum TransactionStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum FraudDecision {
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+
+  transactions Transaction[]
+  reviews      FraudReview[]
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  type      TransactionType
+  amount    Float
+  time      DateTime
+
+  riskScore   Float?
+  riskLevel   String?
+  category    String?
+  explanation String?
+
+  status TransactionStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  cardTransaction CardTransaction?
+  upiTransaction  UPITransaction?
+  bankTransfer    BankTransfer?
+
+  fraudReview FraudReview?
+}
+
+model CardTransaction {
+  id            String @id @default(uuid())
+  transactionId String @unique
+
+  cardholderName String
+  cardLast4Digits String
+  cardNetwork     String
+  cardType        String
+  cardExpiryDate  String
+
+  billingCountry String
+  billingState   String
+  billingPostal  String
+
+  shippingCountry String
+  shippingState   String
+  shippingPostal  String
+
+  cvvEntered Boolean
+  avsResult  String
+
+  ipAddress  String
+  deviceType String
+  deviceOS   String
+  browserType String
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model UPITransaction {
+  id            String @id @default(uuid())
+  transactionId String @unique
+
+  senderUpiId   String
+  receiverUpiId String
+  upiProvider   String
+  linkedBankName String
+
+  senderName   String
+  receiverName String
+
+  deviceType String
+  deviceOS   String
+  ipAddress  String
+
+  authenticationMethod String
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model BankTransfer {
+  id            String @id @default(uuid())
+  transactionId String @unique
+
+  senderAccountHolderName String
+  senderBankName          String
+  senderAccountNumber     String
+
+  receiverAccountHolderName String
+  receiverBankName          String
+  receiverAccountNumber     String
+
+  transferType String
+  utrNumber    String
+  remark       String?
+
+  senderCountry   String
+  receiverCountry String
+
+  deviceType String
+  deviceOS   String
+  ipAddress  String
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model FraudReview {
+  id String @id @default(uuid())
+
+  transactionId String @unique
+  clerkId       String
+
+  decision FraudDecision
+  notes    String?
+
+  reviewedAt DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  clerk       User        @relation(fields: [clerkId], references: [id])
+}
